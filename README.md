@@ -1,6 +1,6 @@
-# SkyLox Signup Setup Guide
+# Roblox Oauth 2.0 to Firebase Setup Guide
 
-This guide will help you set up the Roblox OAuth signup flow for SkyLox using Firebase.
+This guide will help you set up the Roblox OAuth signup flow for Roblox Oauth 2.0 using Firebase.
 
 ## Prerequisites
 
@@ -183,12 +183,26 @@ Create an HTML file (e.g., `index.html`) with the following content:
 1. In the Firebase Console, go to **Authentication**.
 2. Enable **Anonymous Sign-In** under the Sign-in method tab.
 
-### 4. Obtain Roblox OAuth Credentials
+### 4. Set Firestore Security Rules
+
+Set the following security rules for your Firestore database to ensure only authenticated users can read and write data:
+
+```plaintext
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
+
+### 5. Obtain Roblox OAuth Credentials
 
 1. Create an OAuth application on Roblox.
 2. Note down your `client_id` and `client_secret`.
 
-### 5. Update OAuth Parameters
+### 6. Update OAuth Parameters
 
 Replace the placeholders in the JavaScript code with your actual OAuth application details:
 
@@ -196,19 +210,19 @@ Replace the placeholders in the JavaScript code with your actual OAuth applicati
 - `your_client_secret`
 - `https://www.example.com/callback` (update to your actual callback URL)
 
-### 6. Setup .env File (Optional but Recommended)
+### 7. Setup .env File (Optional but Recommended)
 
 Create a `.env` file to store your API keys and other sensitive information. This step requires server-side configuration to load these variables into your frontend code securely.
 
-### 7. Deploy Your HTML File
+### 8. Deploy Your HTML File
 
 Deploy your HTML file to your web server.
 
-### 8. Handling OAuth Callback
+### 9. Handling OAuth Callback
 
 Ensure that your server can handle the OAuth callback URL (`https://www.example.com/callback`). This URL should match the one configured in your Roblox OAuth application and in the HTML file.
 
-### 9. Testing
+### 10. Testing
 
 1. Navigate to your deployed HTML file.
 2. Click the "Sign Up with Roblox" button and complete the OAuth flow.
@@ -220,4 +234,4 @@ Ensure that your server can handle the OAuth callback URL (`https://www.example.
 - Check the browser console for any error messages.
 - Verify your Firebase and Roblox OAuth credentials.
 
-By following these steps, you should have a fully functional Roblox OAuth signup flow integrated with Firebase. If you need any help, feel free to contact `me@mrrandom.dev`, I will respond ASAP.
+By following these steps, you should have a fully functional Roblox OAuth signup flow integrated with Firebase.

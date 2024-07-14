@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roblox Signup</title>
+</head>
+<body>
+
+  <div class="signup-container">
+    <h2>Sign Up for SkyLox</h2>
+    <div class="form-group">
+      <button id="oauth-button">Sign Up with Roblox</button>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
+
+  <script>
+    // I would make a .env file to store the API key
+document.addEventListener('DOMContentLoaded', function() {
+  var firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "yourapp.firebaseapp.com",
+    projectId: "yourapp",
+    storageBucket: "yourapp.appspot.com",
+    messagingSenderId: "your_messaging_sender_id",
+    appId: "your_app_id",
+  };
+  firebase.initializeApp(firebaseConfig);
+
+  const oauthButton = document.getElementById('oauth-button');
+  if (oauthButton) {
+    oauthButton.addEventListener('click', function(event) {
+      event.preventDefault();
+      startOAuthFlow();
+    });
+  }
+// Make sure to change 'your_client_id' to the d given to you. Aswell change 'https://www.example.com/callback' to your callback URL
+  function startOAuthFlow() {
+    const clientId = 'your_client_id';
+    const redirectUri = 'https://www.example.com/callback';
+    const state = generateState();
+
+    localStorage.setItem('oauthState', state);
+
+    const authorizationUrl = `https://apis.roblox.com/oauth/v1/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=openid%20profile`;
+
+    window.location.href = authorizationUrl;
+  }
+
+  function generateState() {
+    return Math.random().toString(36).substring(2);
+  }
+
+  function handleOAuthCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+    const storedState = localStorage.getItem('oauthState');
+
+    if (state !== storedState) {
+      alert('Invalid state parameter');
+      return;
+    }
+
+    exchangeCodeForToken(code);
+  }
+// Make sure to change 'client_id_here' and 'client_secret_here' to your client id and secret given by Roblox. And change your callback URL 'https://www.example.com/callback'.
+  function exchangeCodeForToken(code) {
+    const tokenUrl = 'https://apis.roblox.com/oauth/v1/token';
+    const clientId = 'client_id_here';
+    const clientSecret = 'client_secret_here';
+    const redirectUri = 'https://www.example.com/callback';
+
+    fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: redirectUri,
+        client_id: clientId,
+        client_secret: clientSecret
+      }).toString()
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.access_token) {
+        fetchUserInfo(data.access_token);
+      } else {
+        console.error('Failed to obtain access token');
+        alert('Failed to obtain access token');
+      }
+    })
+    .catch(error => console.error('Error exchanging token:', error));
+  }
+
+  function fetchUserInfo(accessToken) {
+    fetch('https://apis.roblox.com/oauth/v1/userinfo', {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    })
+    .then(response => response.json())
+    .then(userInfo => {
+      console.log('User Info:', userInfo); // Log user info
+      const additionalUserData = {
+        uniqueID: generateSixDigitID(),
+        region: userInfo.locale || 'unknown',
+        firstName: userInfo.given_name || '',
+        lastName: userInfo.family_name || '',
+        dob: userInfo.birthdate || '',
+        gender: userInfo.gender || '',
+        robloxId: userInfo.sub,
+        robloxUsername: userInfo.preferred_username
+      };
+      saveUserToFirebase(userInfo.sub, additionalUserData);
+    })
+    .catch(error => console.error('Error fetching user info:', error));
+  }
+
+  function saveUserToFirebase(uid, additionalUserData) {
+    firebase.auth().onAuthStateChanged((user) => {
+      if (user) {
+        console.log('User authenticated:', user.uid); // Log authenticated user
+        console.log('Saving data to Firestore for UID:', uid); // Log UID being saved
+        firebase.firestore().collection('users').doc(uid).set(additionalUserData)
+          .then(() => {
+            console.log('User data saved successfully'); // Log success
+            window.location.href = 'https://myportal.skylox.org';
+          })
+          .catch(error => console.error('Error saving user to Firestore:', error));
+      } else {
+        console.error('User is not authenticated, redirecting to login...');
+        firebase.auth().signInAnonymously().then(() => {
+          saveUserToFirebase(uid, additionalUserData); // Retry saving after signing in
+        }).catch(error => {
+          console.error('Error signing in anonymously:', error);
+        });
+      }
+    });
+  }
+
+  function generateSixDigitID() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+// Change this to the correct callback path.
+  if (window.location.pathname === '/callback/') {
+    handleOAuthCallback();
+  }
+});
+</script>
+</body>
+</html>
